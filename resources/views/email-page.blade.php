@@ -122,7 +122,7 @@
                     <tr>
                         <td bgcolor="#ffffff" align="center" valign="top" style="padding: 40px 20px 20px 20px; border-radius: 4px 4px 0px 0px; color: #111111; font-family: 'Lato', Helvetica, Arial, sans-serif; font-size: 48px; font-weight: 400; letter-spacing: 1px; line-height: 48px;">
                             <!-- <h1 style="font-size: 48px; font-weight: 400; margin: 2;">Account Information!</h1>  -->
-                            <img src="http://127.0.0.1:8000/Mail/Mail_pic.svg" width="360" height="150" style="display: block; border: 0px;" />
+                            <img src="https://cdn-icons-png.flaticon.com/128/10703/10703030.png"  style="display: block; border: 0px;" />
                             <h1 style="margin: 0px; color: #264653; line-height: 120%; margin-top: 25px; text-align: center; word-wrap: break-word; font-family: arial,helvetica,sans-serif; font-size: 38px; font-weight: 400;"><strong>Congrats!</strong></h1>
                             <div style="font-size: 14px; line-height: 120%; text-align: center; word-wrap: break-word;">
                               <p style="font-size: 14px; line-height: 100%;"><span style="font-size: 22px; line-height: 30.8px; color: #2a9d8f;"><strong>You are now registered Tenant</strong></span></p>

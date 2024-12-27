@@ -18,14 +18,19 @@ class Equipments extends Model
         'name',
     ];
 
-    public function apartments()
-    {
-        return $this->hasMany(ApartmentInclusion::class);
-    }
+    // public function apartments()
+    // {
+    //     return $this->hasMany(ApartmentInclusion::class);
+    // }// old relation
 
-    public function boardingHouses()
+    // public function boardingHouses()
+    // {
+    //     return $this->hasMany(BoardingHouseInclusion::class);
+    // } // old relation
+
+    public function inclusions()
     {
-        return $this->hasMany(BoardingHouseInclusion::class);
+        return $this->hasMany(Inclusion::class, 'equipment_id');
     }
 
 }

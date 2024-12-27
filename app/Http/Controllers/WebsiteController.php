@@ -11,6 +11,8 @@ use App\Models\Room;
 use App\Models\Equipments;
 use App\Models\ApartmentInclusion;
 use App\Models\BoardingHouseInclusion;
+use App\Models\Account;
+
 
 class WebsiteController extends Controller
 {
@@ -30,8 +32,8 @@ class WebsiteController extends Controller
     public function All()
     {
         try{
-            $allApartment = Apartment::with('inclusions.inclusion')->get();
-            $allBoardinghouse = BoardingHouse::with('rooms', 'inclusions.inclusion')->get();
+            $allApartment = Apartment::with('inclusions.equipment','images')->get();
+            $allBoardinghouse = BoardingHouse::with('rooms.beds', 'inclusions.equipment', 'images')->get();
             
             return response()->json([
                 'message' => 'Query all Property Sucessfully',
@@ -46,7 +48,7 @@ class WebsiteController extends Controller
     {
         try{
             // $apartment = Property::with(['apartments' ])->get();
-            $allApartment = Apartment::with('inclusions.inclusion')->get();
+            $allApartment = Apartment::with('inclusions.equipment')->get();
             return response()->json([
                 'message' => 'Query all Apartment Successfully',
                 'data' => $allApartment,
@@ -59,7 +61,7 @@ class WebsiteController extends Controller
     public function All_BoardingHouse()
     {
         try{
-            $boardinghouse = Property::with(['boardingHouses' ])->get();
+            $boardinghouse = BoardingHouse::with(['rooms.beds', 'inclusions.equipment' ])->get();
             return response()->json([
                 'message' => 'Query all Boardinghouse Successfully',
                 'data' => $boardinghouse,
@@ -100,6 +102,59 @@ class WebsiteController extends Controller
 
         }catch (\Exception $e) {
             return response()->json(['message' => 'Error to Query a Data', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // Display the Details of boardinghouse and apartment
+    public function ApartmentDetails($propertyId, $unitId)
+    {
+        try {
+            $property = Property::findOrFail($propertyId);
+
+            $apartment = $property->apartments()
+                ->with(['inclusions.equipment', 'property', 'images'])
+                ->where('id', $unitId)
+                ->firstOrFail();
+
+            $LandlordContact = Account::where('user_type', 'Landlord')->first();
+
+
+            // $inclusions = $apartment->inclusions->map(function ($inclusion) {
+            //     return [
+            //         'id' => $inclusion->id,
+            //         'name' => $inclusion->equipment->name,
+            //         'quantity' => $inclusion->quantity,
+            //     ];
+            // });
+
+            return response()->json([
+                'message' => 'Unit Property Found Successfully',
+                'apartment' => $apartment,
+                'landlord' => $LandlordContact,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error querying data', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function BoardingHouseDetails($propertyId, $unitId)
+    {
+        try{
+            $property = Property::findOrFail($propertyId);
+            $boardinghouse = $property->boardingHouses()
+                ->with(['inclusions.equipment', 'rooms.beds', 'images'])
+                ->where('id', $unitId)->first();
+            
+            $LandlordContact = Account::where('user_type', 'Landlord')->first();
+
+            return response()->json([
+                'message' => 'Successfully Query the Data',
+                'boardinghouse' => $boardinghouse,
+                'landlord' => $LandlordContact,
+            ]);
+
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Error querying data', 'error' => $e->getMessage()], 500);
         }
     }
     

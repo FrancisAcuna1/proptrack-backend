@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('room_id');
             $table->string('bed_number');
-            $table->string('bed_type');
+            $table->integer('price');
             $table->string('status');
             $table->timestamps();
         });

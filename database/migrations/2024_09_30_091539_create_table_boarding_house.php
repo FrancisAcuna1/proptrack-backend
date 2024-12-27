@@ -19,16 +19,16 @@ return new class extends Migration
                 $table->string('boarding_house_name');
                 $table->integer('number_of_rooms');
                 $table->string('capacity');
-                $table->string('rental_fee');
-                $table->string('payor_name');
+                // $table->string('rental_fee');
+                // $table->string('payor_name');
                 $table->enum('status', ['Available', 'Occupied']);
                 $table->string('property_type');
-                $table->string('inclusion');
+                // $table->string('inclusion');
                 $table->string('building_no');
                 $table->string('street');
                 $table->string('barangay');
                 $table->string('municipality');
-                $table->string('image');
+                // $table->string('image');
                 $table->timestamps();
             });
         }    

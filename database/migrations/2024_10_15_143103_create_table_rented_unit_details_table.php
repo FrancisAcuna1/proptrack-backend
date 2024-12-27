@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('rented_unit_details', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('rental_agreement_id');
-            $table->string('rented_room_number'); 
-            $table->integer('rented_bed_number'); 
+            $table->string('room_id'); 
+            $table->integer('bed_id'); 
             $table->timestamps();
         });
     }

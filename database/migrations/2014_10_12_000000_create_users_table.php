@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('firstname');
             $table->string('middlename');
             $table->string('lastname');
-            $table->integer('age');
             $table->string('contact');
             $table->string('street');
             $table->string('barangay');
@@ -25,6 +24,7 @@ return new class extends Migration
             $table->string('username');
             $table->string('password');
             $table->string('user_type');
+            $table->string('status');
             // $table->timestamp('email_verified_at')->nullable();
             // $table->rememberToken();
             $table->timestamps();

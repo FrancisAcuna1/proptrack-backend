@@ -17,7 +17,7 @@ class RentedUnitDetails extends Model
     protected $fillable = [
         'rental_agreement_id',
         'room_id',
-        'rented_bed_number',
+        'bed_id',
     ];
 
     public function rentalagreement(){
@@ -27,5 +27,10 @@ class RentedUnitDetails extends Model
     public function rentedroom()
     {
         return $this->belongsTo(Room::class, 'room_id');
+    }
+
+    public function paymentTransactions()
+    {
+        return $this->hasMany(paymentTransactions::class, 'room_id');
     }
 }

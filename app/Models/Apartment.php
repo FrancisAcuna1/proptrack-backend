@@ -27,7 +27,7 @@ class Apartment extends Model
         'street',
         'barangay',
         'municipality',
-        'image'
+        // 'image'
     ];
 
     public function property()
@@ -35,14 +35,39 @@ class Apartment extends Model
         return $this->belongsTo(Property::class); // Belongs to property
     }
 
-    public function inclusions()
-    {
-        return $this->hasMany(ApartmentInclusion::class, 'apartment_id'); // have a relation to ApartmentInclusion Model
-    }
+    // public function inclusions()
+    // {
+    //     return $this->hasMany(ApartmentInclusion::class, 'apartment_id'); // have a relation to ApartmentInclusion Model
+    // }
 
     public function rentalAgreements()
     {
         return $this->morphMany(RentalAgreement::class, 'rented_unit');
+    }
+
+    public function inclusions()
+    {
+        return $this->morphMany(Inclusion::class, 'unit');
+    }
+
+    public function images()
+    {
+        return $this->morphMany(PropertiesImage::class, 'unit');
+    }
+
+    public function paymentTransactions()
+    {
+        return $this->hasMany(PaymentTransactions::class, 'rented_unit_id');
+    }
+    
+    public function expenses()
+    {
+        return $this->morphMany(Expenses::class, 'unit');
+    }
+    
+    public function maintenance_schedule()
+    {
+        return $this->morphMany(ScheduleMaintenance::class, 'unit');
     }
 
     

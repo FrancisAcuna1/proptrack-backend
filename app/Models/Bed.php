@@ -17,13 +17,13 @@ class Bed extends Model
     protected $fillable = [
         'room_id',
         'bed_number',
-        'bed_type',
+        'price',
         'status',
     ];
 
     public function rooms()
     {
-        return $this->belongsTo(room::class); // Belongs or have a relation to Apartment Model
+        return $this->belongsTo(room::class, 'room_id'); // Belongs or have a relation to Apartment Model
     }
 
 

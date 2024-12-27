@@ -19,9 +19,13 @@ class RentalAgreement extends Model
         'rented_unit_id',
         'rented_unit_type',
         'rental_fee',
+        'initial_payment',
+        'advance_payment',
+        'prepaid_rent_period',
         'deposit',
         'lease_start_date',
-        'lease_end_date'
+        'is_last_month'
+        // 'lease_end_date'
     ];
 
     public function tenant(){
