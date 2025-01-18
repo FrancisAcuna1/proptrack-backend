@@ -35,7 +35,6 @@ use App\http\Controllers\ChatbotController;
 // });
 Route::post('/login', [AuthenticationController::class, 'loginAuthentication'])->name('login');
 Route::get('email', [UserController::class, 'email']);
-// Route::get('/all', [WebsiteController::class, 'All_Property']);
 Route::get('/all_prop', [WebsiteController::class, 'All']);
 Route::get('/all_apartment', [WebsiteController::class, 'All_Apartment']);
 Route::get('/all_boardinghouse', [WebsiteController::class, 'All_boardinghouse']);
@@ -43,6 +42,24 @@ Route::get('/all_available/{status}', [WebsiteController::class, 'All_Available'
 Route::get('/all_occupied/{status}', [WebsiteController::class, 'All_Occupied']);
 Route::get('/apartmentdetails/{id}/{unitId}', [WebsiteController::class, 'ApartmentDetails']);
 Route::get('/boardinghousedetails/{id}/{unitId}', [WebsiteController::class, 'BoardingHouseDetails']);
+
+ //Chatbot API findMaintenanceRequestStatus
+ Route::get('chatbot/all_apartment', [ChatbotController::class, 'allApartment']);
+ Route::get('chatbot/all_boarding_house', [ChatbotController::class, 'allBoardingHouse']);
+ Route::get('chatbot/available_boardinghouse', [ChatbotController::class, 'Available_BoardingHouse_Response']);
+ Route::get('chatbot/available_apartment', [ChatbotController::class, 'Available_Apartment_Response']);
+ Route::get('chatbot/apartment_less_than_5000', [ChatbotController::class, 'apartmentsPriceRangeBetween5000']);
+ Route::get('chatbot/apartment_between_5000_to_15000', [ChatbotController::class, 'apartmentsPriceRangeBetween5000To15000']);
+ Route::get('chatbot/apartment_greater_than_15000', [ChatbotController::class, 'apartmentsPriceRangeGreater15000']);
+ Route::get('chatbot/boardinghouse_less_than_2000', [ChatbotController::class, 'boardinghousePriceRangeLessThan2000']);
+ Route::get('chatbot/boardinghouse_between_2000_to_5000', [ChatbotController::class, 'boardinghousePriceRangeBetween2000To5000']);
+ Route::get('chatbot/boardinghouse_greater_than_5000', [ChatbotController::class, 'boardinghousePriceGreaterThan5000']);
+ Route::get('chatbot/lastpayment/{firstname}/{lastname}/{unit}/{unitType}', [ChatbotController::class, 'LastPayment']);
+ Route::get('chatbot/findSchedule/{firstname}/{lastname}/{reportedItem}/{reportedDate}', [ChatbotController::class, 'findScheduleMaintenance']);
+ Route::get('chatbot/find_Maintenance_Request_Status/{firstname}/{lastname}/{reportedItem}/{reportedDate}/{unitName}/{unitType}', [ChatbotController::class, 'findMaintenanceRequestStatus']);
+ Route::get('chatbot/check_balance/{firstname}/{lastname}/{unitName}/{unitType}', [ChatbotController::class, 'checkBalance']);
+ Route::get('chatbot/landlord_contact_info', [ChatbotController::class, 'landLordContactInfo']);
+
 
 Route::middleware('auth:sanctum')->group(function() {
     Route::get('/userdata', [AuthenticationController::class, 'user']); // display user info
@@ -96,7 +113,6 @@ Route::middleware('auth:sanctum')->group(function() {
     Route::Delete('remove_tenant_occupancy/{tenantId}', [RentalController::class, 'Remove_Tenant_Occupany']); #Remove Tenant Occupancy
     Route::get('security_deposit/{tenantId}', [RentalController::class, 'Tenant_Security_Deposit']); #get the security deposit for lastmonth payment
 
-
     // Maintenance Controller
     Route::get('tenant_unit_info/{tenantId}', [MaintenanceController::class, 'Tenant_Unit_Information']);
     Route::post('requestmaintenance', [MaintenanceController::class, 'Request_Maintenance']); // maitenance module
@@ -134,7 +150,6 @@ Route::middleware('auth:sanctum')->group(function() {
     Route::post('income_statistic', [RevenueController::class, 'Income_Statistic']);
     Route::post('paid_by_deposit/{id}', [RevenueController::class, 'Paid_by_Deposit']);
   
-    
     // Dashboard Controller
     Route::get('index', [DashboardController::class, 'Index']);
     Route::get('all_tenant', [DashboardController::class, 'All_Tenant']);
@@ -180,52 +195,8 @@ Route::middleware('auth:sanctum')->group(function() {
 
     //Change Password Controller
     Route::post('generate_otp', [ChangePasswordController::class, 'Generate_Otp']);
+    Route::post('resend_otp', [ChangePasswordController::class, 'Resend_Otp']);
     Route::put('change_password', [ChangePasswordController::class, 'Change_Password_OTP']);
-
-
-    //Chatbot Controller
-    Route::post('chatbot/query', [ChatbotController::class, 'Query']);
-    Route::get('chatbot/services', [ChatbotController::class, 'Services']);
-
-    // Expenses Controller
-    // Route::get('get_all_property', [ExpensesController::class, 'Get_All_Property']); // this api is to get all property to display in form of expenses
-    // Route::post('store_expenses', [ExpensesController::class, 'Store_Expenses']);
- //Landlord Dashboard Home Maintenance_Request_List
-    // Route::controller(DashboardController::class)->group(function() {
-    //     Route::get('index', 'Index');
-    //     Route::get('all_tenant', 'All_Tenant');
-    //     Route::post('getIncome', 'GetIncome');
-    //     Route::post('getExpenses', 'GetExpenses');
-    //     Route::get('all', 'All');
-    // });
-
-    // Route::controller(ExpensesController::class)->group(function() {
-    //     Route::get('get_all_property', 'Get_All_Property');
-    //     Route::get('edit/{id}', 'Edit');
-    //     Route::post('store_expenses', 'Store_Expenses');
-    //     Route::post('get_all_expenses', 'Get_All_Expenses');
-    //     Route::post('filter_expenses/{category}', 'Filter_Expenses');
-    //     Route::post('calculate_expenses', 'Calculate_Expenses');
-    //     Route::post('expenses_statistic','Expenses_Statistic');
-    //     Route::put('update_expenses/{id}', 'Update_Expenses');
-    //     Route::delete('delete_expenses/{id}', 'Delete_Expenses');
-    // });
-
-      // Route::controller(RecurringExpensesController::class)->group(function () {
-    //     Route::post('/generate_recurring_expenses', 'Generate_Recurring_Expenses');
-    //     Route::post('/get_recurring_expenses', 'Get_RecurringExpenses_Details');
-    //     Route::post('/filter_recurring_expenses/{category}/{type}', 'Filter_Recurring_Expenses'); //filter function
-    //     Route::put('/markaspaid/{id}','PaidRecurringExpenses');
-    //     Route::get('/edit_recurring/{id}', 'Edit_Recurring');
-    //     Route::put('/update_recurring/{id}', 'Update_Recurring');
-    //     Route::delete('/delete/{id}','Delete_Recurring_Expenses');
-    // });
-
-    // Route::controller(DeliquentController::class)->group(function(){
-    //     Route::post('/store_delequent', 'Store_Delequent');
-    //     Route::get('/get_delequent/{id}', 'Get_Delequent_Details');
-    // });
-
     
 });
 

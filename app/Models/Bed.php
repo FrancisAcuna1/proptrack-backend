@@ -19,6 +19,7 @@ class Bed extends Model
         'bed_number',
         'price',
         'status',
+        'move_out_date'
     ];
 
     public function rooms()

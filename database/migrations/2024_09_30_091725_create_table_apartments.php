@@ -27,6 +27,7 @@ return new class extends Migration
                 $table->string('street');
                 $table->string('barangay');
                 $table->string('municipality');
+                $table->date('move_out_date')->nullable();
                 $table->timestamps();
             });
         }

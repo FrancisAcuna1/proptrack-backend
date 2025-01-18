@@ -24,6 +24,8 @@ class MaintenanceRequest extends Model
         'is_schedule',
         'status',
         'remarks',
+        'created_at', // Manually handle these
+        'updated_at', // Manually handle these
     ];
 
     public function tenant(){

@@ -81,11 +81,12 @@ class MaintenanceController extends Controller
                 'issue_description' => $validatedData['issue_description'],
                 'is_schedule' => false,
                 'date_reported' => Carbon::createFromFormat('m/d/Y', $validatedData['date_reported'])->format('Y-m-d'),
+                'created_at' => Carbon::now('Asia/Manila'), // Set to current PHT
+                'updated_at' => Carbon::now('Asia/Manila'), // Set to current PHT   
             ]);
 
             $maintenance = MaintenanceRequest::create($data);
-     
-            // $unitName = $unit->
+   
             // Handle multiple images
             if ($request->hasFile('images')) {
                 foreach ($request->file('images') as $imageFile) {
@@ -174,7 +175,7 @@ class MaintenanceController extends Controller
             // }
 
             $tenant = $maintenanceRequest->tenant;
-
+            $unitName = null;
             if ($tenant && !empty($tenant->email)) {
                 // Send email notification
                 $mailData = [
@@ -184,7 +185,7 @@ class MaintenanceController extends Controller
                 Mail::to($tenant->email)->send(new Notification($mailData));
     
                 // Send database notification
-                $tenant->notify(new NewNotifications($maintenanceRequest, 'User'));
+                $tenant->notify(new NewNotifications($maintenanceRequest, $unitName, 'User'));
             } else {
                 Log::warning('Tenant or tenant email is missing for maintenance request ID: ' . $id);
             }
@@ -219,7 +220,7 @@ class MaintenanceController extends Controller
             $maintenanceRequest->save();
 
             $tenant = $maintenanceRequest->tenant;
-
+            $unitName = null;
             if ($tenant && !empty($tenant->email)) {
                 // Send email notification
                 $mailData = [
@@ -229,7 +230,7 @@ class MaintenanceController extends Controller
                 Mail::to($tenant->email)->send(new RejectedNotification($mailData));
     
                 // Send database notification
-                $tenant->notify(new NewNotifications($maintenanceRequest, 'User'));
+                $tenant->notify(new NewNotifications($maintenanceRequest, $unitName, 'User'));
             } else {
                 Log::warning('Tenant or tenant email is missing for maintenance request ID: ' . $id);
             }
@@ -249,6 +250,7 @@ class MaintenanceController extends Controller
         try{
             $validatedData = $request->validate([
                 'remarks' => 'required|min:1|max:16500',
+                'unitName' => 'nullable',
             ]);
 
             $maintenanceRequest = MaintenanceRequest::with('tenant')->findOrfail($id);
@@ -264,9 +266,11 @@ class MaintenanceController extends Controller
 
             $landlord = Account::where('user_type', 'Landlord')->first();
 
+            $unitName = $validatedData['unitName']; 
+
             if ($landlord) {
                 // Notify the landlord with the cancellation info
-                $landlord->notify(new NewNotifications($maintenanceRequest, 'Landlord'));
+                $landlord->notify(new NewNotifications($maintenanceRequest, $unitName, 'Landlord'));
             } else {
                 return response()->json([
                     'message' => 'No landlord found to notify!'

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('bed_number');
             $table->integer('price');
             $table->string('status');
+            $table->date('move_out_date')->nullable();
             $table->timestamps();
         });
     }

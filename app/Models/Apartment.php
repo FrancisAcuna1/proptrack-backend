@@ -27,6 +27,7 @@ class Apartment extends Model
         'street',
         'barangay',
         'municipality',
+        'move_out_date'
         // 'image'
     ];
 

@@ -5,363 +5,537 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use OpenAI\Laravel\Facades\OpenAI;
+use Illuminate\Support\Facades\Auth;
 use App\Models\KnowledgeBase;
+use App\Models\BoardingHouse;
+use App\Models\Apartment;
 use App\Models\Deliquent;
 use App\Models\PaymentTransactions;
 use App\Models\RentalAgreement;
+use App\Models\Account;
+use App\Models\MaintenanceRequest;
+use App\Models\ScheduleMaintenance;
 use Carbon\Carbon;
 
 class ChatbotController extends Controller
 {
-    protected $maxInputTokens = 40; // Maximum token limit for user input
-    protected $maxOutputTokens = 250; 
     protected $fallbackResponse = 'Pasensya na, hindi ko alam ang sagot sa tanong na iyan. May mga limitasyon ang aking kaalaman.';
 
-    public function query(Request $request)
-    {
-        try {
-            $apiKey = env('OPENAI_API_KEY');
-            if (!$apiKey) {
-                throw new \Exception('OpenAI API Key is not set.');
-            }
-            $validatedData = $request->validate([
-                'query' => 'required|string|max:255'
-            ]);
-
-            // Log the validated request data
-            Log::info('Chatbot Query Received:', [
-                'query' => $validatedData['query'],
-                'user_id' => $request->user()->id ?? null, // Log user ID if available
-                'ip_address' => $request->ip(), // Log the IP address of the request
-                'timestamp' => now() // Log the current timestamp
-            ]);
-
-            $userQuery = trim($validatedData['query']);
-
-             // Check if the input exceeds the maximum token limit
-            $inputTokenCount = $this->countTokens($userQuery);
-            if ($inputTokenCount > $this->maxInputTokens) {
-                return response()->json([
-                    'response' => 'Ang iyong tanong ay masyadong mahaba. Mangyaring bawasan ito.'
-                ], 400);
-            }
-
-             // Log the input token count
-            Log::info('Input Token Count:', [
-                'user_id' => $request->user()->id ?? null,
-                'input_token_count' => $inputTokenCount
-            ]);
-
-            if($this->isProgrammingQuery($userQuery)){
-                return response()->json([
-                    'response' => "Ako'y isang chatbot na nakatuon sa property management. Maaari kitang matulungan sa mga tanong tungkol sa maintenance, rental payment, at iba pa patungkol sa inyong tirahan. Anuman ang iyong katanungan, huwag kang mag-atubiling itanong"
-                ]);
-            }
-            
-            if($this->isNextDuedateQuery($userQuery)){
-                $userId = $request->user()->id ?? null; // Ensure you have a user ID
-                if (!$userId) {
-                    return response()->json([
-                        'response' => 'Kailangan mong mag-log in upang suriin ang iyong balanse.'
-                    ], 403);
-                }
-                $nextDuedateResponse = $this->checkNextDuedate($userId);
-                return response()->json([
-                    'response' => $nextDuedateResponse
-                ], 200);
-            }
-
-            if($this->isServiceQuery($userQuery)){
-                $introMessage = "Narito ang mga serbisyo na maaari kong ihandog sa iyo. Puwede kitang matulungan sa mga sumusunod na serbisyo:";
-                $servicesArray = $this->Services(); // Ensure this returns an array
-
-                // Return the response as JSON
-                return response()->json([
-                    'response' => [
-                        'intro' => $introMessage,
-                        'services' => $servicesArray,
-                    ]
-                ], 200);
-            }
-            
-            if ($this->isBalanceQuery($userQuery)) {
-                $userId = $request->user()->id ?? null; // Ensure you have a user ID
-                if (!$userId) {
-                    return response()->json([
-                        'response' => 'Kailangan mong mag-log in upang suriin ang iyong balanse.'
-                    ], 403);
-                }
     
-                $balanceResponse = $this->checkBalance($userId); // return query value
-
-                $balanceOutputTokenCount = $this->countTokens($balanceResponse); // this code is for checking the output token
-                Log::info('Local Output Token Count:', [
-                    'user_id' => $request->user()->id ?? null,
-                    'local_output_token_count' => $balanceOutputTokenCount
-                ]);
-
-                return response()->json(['response' => $balanceResponse]);
-            }
-
-            // If no local match, use AI model
-            $aiResponse = $this->generateAIResponse($userQuery);
-
-            $outputTokenCount = $this->countTokens($aiResponse);
-            if ($outputTokenCount > $this->maxOutputTokens) {
-                $aiResponse = substr($aiResponse, 0, $this->maxOutputTokens); // Truncate the response
-            }
-           
-            Log::info('Output Token Count:', [
-                'user_id' => $request->user()->id ?? null,
-                'output_token_count' => $outputTokenCount
-            ]);
-
-            return response()->json(['response' => $aiResponse]);
-
-        } catch (\Exception $e) {
-            // Log the error and return a generic error response
-            Log::error('Chatbot Query Error: ' . $e->getMessage());
-            
-            return response()->json([
-                'response' => $this->fallbackResponse,
-                'error' => 'An unexpected error occurred'
-            ], 500);
-        }
-    }
-
-    public function Services()
+    public function allApartment()
     {
         try{
-            $services = [
-                ['id' => 1, 'name' => 'Paano mag request ng maintenance'],
-                ['id' => 2, 'name' => 'Suriin ang balanse'],
-                ['id' => 3, 'name' => 'Susunod na petsa ng bayarin'],
-            ];
-            return response()->json(['services' => $services], 200);
-        } catch (\Exception $e) {
-            Log::error('Error fetching services: ' . $e->getMessage());
+            $allApartment = Apartment::all();
+            
+
             return response()->json([
-                'response' => $this->fallbackResponse,
-                'error' => 'An unexpected error occurred'
-            ], 500);
+                'apartment' => $allApartment,
+            ]);
+        }catch (\Exception $e) {
+            return $this->$fallbackResponse;
         }
     }
 
-    /**
-     * Check local knowledge base for exact or partial match
-     */
-    protected function isServiceQuery($query){
-        $serviceKeywords = ['serbisyo', 'service', 'services'];
-        foreach($serviceKeywords as $keyword){
-            if (stripos($query, $keyword) !== false){
-                return true;
-            }
-        }
-        return false;
-    }
-
-    protected function isNextDuedateQuery($query)
-    {   // Define keywords related to next due date or payment queries
-        $duedateKeywords = [
-            'susunod na petsa ng bayarin', 'next payment', 'duedate', 'due date', 'next duedate', 'next due date', 'sunod na bayad',
-            'kailan ang sunod na bayaran', 'kailan ang bayaran', 'kailan ang susunod na bayad', 'next bill date', 'next billing cycle',
-            'kailan babayaran', 'deadline ng bayad', 'due date ng bayad', 'bayarin deadline', 
-            'kailan ang deadline ng bayad', 'kailan ang takdang bayad', 'due date', 'upcoming payment'
-        ];
-
-        foreach ($duedateKeywords as $keyword) {
-            if (stripos($query, $keyword) !== false) {
-                return true; // Found a keyword related to the next due date
-            }
-        }
-
-        return false; 
-    }
-
-    public function checkNextDuedate($id)
+    public function allBoardingHouse()
     {
-        $paymentDetails = PaymentTransactions::where('tenant_id', $id)
-        ->whereIn('transaction_type', ['Rental Fee', 'Initial Payment', 'Advance Payment'])
-        ->orderBy('date', 'desc') // Order by latest payment date
-        ->get();
+        try{
+            $boardingHouse = BoardingHouse::all();
 
-        $rentalFee = RentalAgreement::where('tenant_id', $id)
-        ->pluck('rental_fee')
-        ->first();
+            if(!$boardingHouse){
+                return response()->json(['message' => 'Pasensya na, wala pang boarding house na naka register']);
+            }
 
-        if(!$rentalFee){
             return response()->json([
-                'response' => 'Walang mahanap na datos sa',
-            ], 204);
-        }
-
-         // Check if there are any relevant payments
-        if ($paymentDetails->isEmpty()) {
-            return response()->json([
-                'response' => 'Walang pang naitalang bayad'
-            ], 204);
-        }
-
-        $lastPayment = $paymentDetails->first();
-        $lastPaymentDate = Carbon::parse($lastPayment->date);
-        $totalMonthsCovered = 0;
-
-        $groupedPayments = $paymentDetails->groupBy(function ($payment) {
-            return Carbon::parse($payment->date)->format('Y-m-d'); // Group by exact date
-        });
-
-        if ($lastPayment->transaction_type === 'Rental Fee') {
-            $totalMonthsCovered = $lastPayment->months_covered ?? 1; 
-        } else {
-
-            $groupedPayments = $paymentDetails->groupBy(function ($payment) {
-                return Carbon::parse($payment->date)->format('Y-m-d'); // Group by exact date
-            });
-    
-            foreach ($groupedPayments as $date => $payments) {
-                // Only consider the date of the last payment
-                if ($date === $lastPaymentDate->format('Y-m-d')) {
-                    foreach ($payments as $payment) {
-                        if (in_array($payment->transaction_type, ['Initial Payment', 'Advance Payment'])) {
-                            $totalMonthsCovered += $payment->months_covered ?? 0; // Add months covered
-                        }
-                    }
-                    break; // Only process the last payment's date
-                }
-            }
-        }
-
-        $nextDuedate = $lastPaymentDate->addMonths($totalMonthsCovered);
-        $formattedNextDuedate = $nextDuedate->format('F j, Y');
-
-        Log::info('NextDuedate Data:', [
-            'date' => $lastPayment ?? null,
-        ]);
-        Log::info('Months Covered:', [
-            'total' => $totalMonthsCovered,
-            'group' => $groupedPayments
-        ]);
-
-
-        Log::info('NextDuedate Data:', [
-            'date' => $formattedNextDuedate ?? null,
-            'amount' => $rentalFee
-        ]);
-        return 'Ang susunod na petsa ng bayarin ay: '.$formattedNextDuedate."\n".'Sa halaga na '.$rentalFee.' pesos';
-    }
-
-    protected function isBalanceQuery($query)
-    {
-        // Define keywords related to balance or payments
-        $balanceKeywords = ['balance', 'balance', 'overdue', 'amount due', 'total', 'bill'];
-
-        foreach ($balanceKeywords as $keyword) {
-            if (stripos($query, $keyword) !== false) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    protected function checkBalance($Id)
-    {
-        $totalOverdue = Deliquent::where('tenant_id', $Id)
-        ->where('status', 'Overdue')
-        ->sum('amount_overdue'); 
-
-      
-        $dueDates = Deliquent::where('tenant_id', $Id)
-        ->where('status', 'Overdue')
-        ->pluck('month_overdue'); 
-
-   
-        $formattedDueDates = [];
-        foreach ($dueDates as $dueDate) {
-            $formattedDueDates[] = Carbon::parse($dueDate)->format('F j, Y'); 
-        }   
-        $dueDatesString = implode(', ', $formattedDueDates);
-        return $totalOverdue > 0 ? 
-        "Ang iyong kabuuang overdue na balanse ay: " . $totalOverdue  . " ito ay para sa mga petsa ng " . $dueDatesString : 
-        "Sa ngayon Wala kang overdue na balanse.";
-    }
-
-    protected function isProgrammingQuery($query)
-    {
-        // Define keywords related to programming
-        $programmingKeywords = [
-            'programming', 'code', 'development', 'software', 'app', 'print', 'display', 'hello world',
-            'loop', 'console.log', 'console', 'python', 'javascript', 'JavaScript', 'js', 'java', 'c++', 
-            'c#', 'ruby', 'kotlin', 'mysql', 'database', 'mongodb', 'php', 'laravel', 'code igniter', 
-            'swift', 'schema', 'nextjs', 'nodejs', 'typescript', 'api', 'backend', 'frontend', 'framework', 
-            'algorithm', 'data structure', 'html', 'css', 'react', 'angular', 'vue', 'bootstrap', 
-            'docker', 'kubernetes', 'linux', 'bash', 'shell', 'git', 'github', 'bitbucket', 'vscode', 
-            'editor', 'ide', 'debug', 'compile', 'execute', 'query', 'stack', 'overflow', 'binary', 'json', 'xml',
-            'how to display', 'how to code', 'write a script', 'how to console.log', 'display a hello world', 'fix this code'
-        ];
-    
-        foreach ($programmingKeywords as $keyword) {
-            if (stripos($query, $keyword) !== false) {
-                return true; // Return true if a programming-related keyword is found
-            }
+                'data' => $boardingHouse
+            ]);
+        }catch (\Exception $e) {
+            return $this->$fallbackResponse;
         }
     }
-    /**
-     * Generate AI response with token limitation
-     */
-    protected function generateAIResponse($query)
+
+    public function Available_BoardingHouse_Response()
     {
         try {
-            if ($this->countTokens($query) > $this->maxInputTokens) {
-                return 'Ang iyong tanong ay masyadong mahaba. Mangyaring bawasan mo ito o mas paikliin ng kaunti';
+            $available = BoardingHouse::with(['inclusions.equipment', 'rooms.beds' => function($query) {
+                $query->where('status', 'Available');
+            }])
+            ->where('status', 'Available')
+            ->get();
+
+            // Filter out boarding houses with no available beds
+            $available = $available->filter(function($boardingHouse) {
+                return $boardingHouse->rooms->contains(function($room) {
+                    return $room->beds->isNotEmpty();
+                });
+            });
+
+            if ($available->isEmpty()) {
+                return response()->json('Sa ngayon walang available na unit para sa boarding house', 404);
             }
 
-            $result = OpenAI::chat()->create([
-                'model' => 'ft:gpt-3.5-turbo-0125:the-lewis-college:smartlease-bot:Ahhb4bgi',
-                'messages' => [
-                    ['role' => 'system', 'content' => 'You are a helpful chatbot assistant named SmartLease Bot for a property management system responding in Tagalog. You assist with property-related concerns, maintenance requests, tenant concerns, and portal guidance.'],
-                    ['role' => 'user', 'content' => $query]
-                ],
-                'max_tokens' => $this->maxOutputTokens,
-                'temperature' => 0.7,
+            return response()->json([
+                'data' => $available
             ]);
 
-            $aiResponse = trim($result->choices[0]->message->content);
-
-            // Fallback if no response generated
-            return $aiResponse ?: $this->fallbackResponse;
-
         } catch (\Exception $e) {
-            Log::error('AI Response Generation Error: ' . $e->getMessage());
+            return response()->json(['message' => 'Error to Query Data', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function Available_Apartment_Response()
+    {
+        try{
+            $available = Apartment::with('inclusions.equipment')->where('status', 'Available')->get();
+            if(!$available){
+                return response()->json('Sa ngayon walang available na unit para sa apartment');
+            }
+            return response()->json([
+             'data' => $available   
+            ]);
+        } catch (\Exception $e) {
             return $this->fallbackResponse;
         }
     }
 
-    protected function countTokens($text)
+    #this function is for rental fee is less than 5000
+    public function apartmentsPriceRangeBetween5000()
     {
-        // This is a simple implementation; you may want to use a more accurate tokenization method
-        return str_word_count($text); // Count words as a proxy for tokens
+        try{
+            $apartmentPrice = Apartment::with('inclusions.equipment')
+            ->where('status', 'Available')
+            ->where('rental_fee', '<', 5000)
+            ->get();
+
+            if(!$apartmentPrice){
+                return response()->json('Sa ngayon walang available na unit para sa apartment');
+            }
+            return response()->json([
+                'data' => $apartmentPrice
+            ]);
+
+        } catch (\Exception $e) {
+            // return $this->fallbackResponse;
+            return response()->json(['message' => 'Error to Query a Data', 'error' => $e->getMessage()], 500);
+        }
     }
 
-    // protected function checkLocalKnowledgeBase($query)
-    // {
-    //     $response = KnowledgeBase::where('tanong', 'LIKE', '%' . $query . '%')
-    //         ->first();
+    #this function is for rental fee is greater than 5000 to 15000
+    public function apartmentsPriceRangeBetween5000To15000()
+    {
+        try{
+            $apartmentPrice = Apartment::with('inclusions.equipment')
+            ->where('status', 'Available')
+            ->whereBetween('rental_fee', [5001, 14999]) // Between 5000 and 15000
+            ->get();
 
-    //     return $response ? $response->sagot : null;
-    // }
+            if ($apartmentPrice->isEmpty()) {
+                return response()->json(['message' => 'Sa ngayon, walang available na unit para sa presyo ng apartment.']);
+            }
+            return response()->json([
+                'data' => $apartmentPrice
+            ]);
+        } catch (\Exception $e) {
+            return $this->fallbackResponse;
+        }
+    }
 
-    #old code
-    // First, check local knowledge base
-    // $localResponse = $this->checkLocalKnowledgeBase($userQuery);
+    #this function is for rental fee is greater than 15000
+    public function apartmentsPriceRangeGreater15000()
+    {
+        try{
+            $apartmentPrice = Apartment::with('inclusions.equipment')
+            ->where('status', 'Available')
+            ->where('rental_fee', '>', 15000)
+            ->get();
+            if ($apartmentPrice->isEmpty()) {
+                return response()->json(['message' => 'Sa ngayon, walang available na unit para sa presyo ng apartment.']);
+            }
+
+            return response()->json([
+                'data' => $apartmentPrice
+            ]);
+        } catch (\Exception $e) {
+            return $this->fallbackResponse;
+        }
+    }
+
+    public function boardinghousePriceRangeLessThan2000()
+    {
+        try{
+            $boardinghousePrice = BoardingHouse::with(['inclusions.equipment', 'rooms.beds' => function($query) {
+                $query->where('status', 'Available')
+                ->where('price', '<=', 2000);
+            }])
+            ->where('status', 'Available')
+            ->get();
+
+            $result = $boardinghousePrice->filter(function($boardingHouse) {
+                return $boardingHouse->rooms->contains(function($room) {
+                    return $room->beds->isNotEmpty();
+                });
+            });
+
+            if($result->isEmpty()){
+                return response()->json(['message' => 'Sa ngayon, walang available na unit para presyo na nais mo']);
+            }
+
+            return response()->json([
+                'data' => $result
+            ]);
+
+        }catch (\Exception $e) {
+            return $this->fallbackResponse;
+        }
+    }
+
+    public function boardinghousePriceRangeBetween2000To5000()
+    {
+        try{
+            $boardinghousePrice = BoardingHouse::with(['inclusions.equipment', 'rooms.beds' => function($query) {
+                $query->where('status', 'Available')
+                ->whereBetween('price', [2001, 50000])
+                ->get();
+            }])
+            ->where('status', 'Available')
+            ->get();
+
+            $result = $boardinghousePrice->filter(function($boardingHouse) {
+                return $boardingHouse->rooms->contains(function($room) {
+                    return $room->beds->isNotEmpty();
+                });
+            });
+
+            if($result->isEmpty()){
+                return response()->json(['message' => 'Sa ngayon, walang available na unit para presyo na nais mo']);
+            }
+
+            return response()->json([
+                'data' => $result
+            ]);
+
+        }catch (\Exception $e) {
+            return $this->fallbackResponse;
+        }
+    }
+
+    public function boardinghousePriceGreaterThan5000()
+    {
+        try{
+            $boardinghousePrice = BoardingHouse::with(['inclusions.equipment', 'rooms.beds' => function($query) {
+                $query->where('status', 'Available')
+                ->where('price', '>', 5000)
+                ->get();
+            }])
+            ->where('status', 'Available')
+            ->get();
+
+            $result = $boardinghousePrice->filter(function($boardingHouse) {
+                return $boardingHouse->rooms->contains(function($room) {
+                    return $room->beds->isNotEmpty();
+                });
+            });
+
+            if($result->isEmpty()){
+                return response()->json(['message' => 'Sa ngayon, walang available na unit para presyo na nais mo']);
+            }
+
+            return response()->json([
+                'data' => $result
+            ]);
+
+        }catch (\Exception $e) {
+            return $this->fallbackResponse;
+        }
+    }
+
+    public function LastPayment($firstname, $lastname, $unitName, $unitType)
+    {
+        try{
+            $user = Account::where('firstname', $firstname)
+            ->where('lastname', $lastname)
+            ->first();
+
+            if (!$user) {
+                return response()->json(['message' => 'Pasensya na, hindi ko mahanap ang iyong pangalan. Siguraduhing tama ang iyong ibinigay at nakarehistro sa aming sistema.']);
+            }
+
+            $userId = $user->id;
+
+            $unitRented = RentalAgreement::with('rentedUnit')
+            ->where('tenant_id', $userId)
+            ->first();
+
+            if (!$unitRented || !$unitRented->rentedUnit) {
+                return response()->json([
+                    'message' => 'Pasensya na, wala kang kasalukuyang rental agreement.'
+                ], 200);
+            }
+
+            $isBoardingHouse = strtolower($unitRented->rentedUnit->property_type) === 'boarding house';
+            $isApartment = strtolower($unitRented->rentedUnit->property_type) === 'apartment';
+    
+            // Validate unit name and type
+            if ($isBoardingHouse) {
+                if ($unitRented->rentedUnit->boarding_house_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang boarding house na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } elseif ($isApartment) {
+                if ($unitRented->rentedUnit->apartment_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang apartment na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } else {
+                return response()->json([
+                    'message' => 'Pasensya na, hindi ko mahanap ang unit na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                ], 200);
+            }
+    
+            // Validate unit name and type
+            // if ($unitRented->rentedUnit->boarding_house_name !== $unitName || 
+            //     $unitRented->rentedUnit->property_type !== $unitType) {
+            //     return response()->json([
+            //         'message' => 'Pasensya na, hindi ko mahanap ang unit na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type'
+            //     ], 200);
+            // }
+
+            $lastpayment = PaymentTransactions::where('tenant_id', $userId)
+            ->whereIn('transaction_type', ['Advance Payment', 'Rental Fee', 'Initial Payment'])
+            ->orderBy('date', 'desc')
+            ->first();
+
+            return response()->json([
+                'data' => $lastpayment,
+                // 'unit' => $unitRented
+            ]);
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Pasensya na, sa ngayon hindi ko ma iproseso ang nais mo.']);
+        }
+    }
+
+    public function findScheduleMaintenance($firstname, $lastname, $reportedItem, $reportedDate)
+    {
+        try{
+            $user = Account::where('firstname', $firstname)
+            ->where('lastname', $lastname)
+            ->first();
+
+            if (!$user) {
+                return response()->json(['message' => 'Pasensya na, hindi ko mahanap ang iyong pangalan. Siguraduhing tama ang iyong ibinigay at nakarehistro sa aming sistema.']);
+            }
+
+            $userId = $user->id;
+
+            \Log::info('Reported Item:', ['reportedItem' => $reportedItem]);
+            \Log::info('Reported Date:', ['reportedDate' => $reportedDate]);
+           // Retrieve maintenance requests that match the reportedItem and reportedDate
+            $maintenanceRequests = MaintenanceRequest::where('tenant_id', $userId)
+            ->where(function($query) use ($reportedItem) {
+                $query->where('reported_issue', 'like', '%' . $reportedItem . '%')
+                    ->orWhere('other_issue', 'like', '%' . $reportedItem . '%');
+            })
+            ->where('date_reported', $reportedDate)
+            ->where('is_schedule', 1)
+            ->get();
+
+            if ($maintenanceRequests->isEmpty()) {
+                return response()->json([
+                    'message' => 'Walang maintenance request na tumutugma sa iyong ibinigay na detalye.'
+                ], 200);
+            }
+
+            $id = $maintenanceRequests->first()->id;
+
+            // Query the ScheduleMaintenance with the extracted id
+            $schedule = ScheduleMaintenance::with('maintenanceRequest')->where('maintenance_request_id', $id)->first();
             
-    // if ($localResponse) {
-    //     $localOutputTokenCount = $this->countTokens($localResponse);
-    //     Log::info('Local Output Token Count:', [
-    //         'user_id' => $request->user()->id ?? null,
-    //         'local_output_token_count' => $localOutputTokenCount
-    //     ]);
-    //     return response()->json(['response' => $localResponse]);
-    // }
+            if(!$schedule){
+                return response()->json([
+                    'message' => 'Pasensya na, sa ngayon ang iyong request ay hindi pa naka schedule para sa pag-aayos nito.'
+                ]);
+            }
+           
+            return response()->json([
+                'data' => $schedule
+            ]);
 
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Query Data failed', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Pasensya na, sa ngayon hindi ko ma iproseso ang nais mo.']);
+        }
+    }
+
+    public function findMaintenanceRequestStatus($firstname, $lastname, $reportedItem, $reportedDate, $unitName, $unitType)
+    {
+        try{
+            $user = Account::where('firstname', $firstname)
+            ->where('lastname', $lastname)
+            ->first();
+
+            if (!$user) {
+                return response()->json(['message' => 'Pasensya na, hindi ko mahanap ang iyong pangalan. Siguraduhing tama ang iyong ibinigay at nakarehistro sa aming sistema.']);
+            }
+
+            $userId = $user->id;
+
+            $unitRented = RentalAgreement::with('rentedUnit')
+            ->where('tenant_id', $userId)
+            ->first();
+
+            if (!$unitRented || !$unitRented->rentedUnit) {
+                return response()->json([
+                    'message' => 'Pasensya na, wala kang kasalukuyang rental agreement.'
+                ], 200);
+            }
+
+            $isBoardingHouse = strtolower($unitRented->rentedUnit->property_type) === 'boarding house';
+            $isApartment = strtolower($unitRented->rentedUnit->property_type) === 'apartment';
+    
+            // Validate unit name and type
+            if ($isBoardingHouse) {
+                if ($unitRented->rentedUnit->boarding_house_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang boarding house na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } elseif ($isApartment) {
+                if ($unitRented->rentedUnit->apartment_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang apartment na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } else {
+                return response()->json([
+                    'message' => 'Pasensya na, hindi ko mahanap ang unit na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                ], 200);
+            }
+
+            $maintenanceRequestsStatus = MaintenanceRequest::where('tenant_id', $userId)
+            ->where(function($query) use ($reportedItem) {
+                $query->where('reported_issue', 'like', '%' . $reportedItem . '%')
+                    ->orWhere('other_issue', 'like', '%' . $reportedItem . '%');
+            })
+            ->where('date_reported', $reportedDate)
+            ->get();
+
+            if($maintenanceRequestsStatus->isEmpty()){
+                return response()->json([
+                   'message' => 'Walang maintenance request na tumutugma sa iyong ibinigay na detalye. Posibleng mali ang iyong inilagay na impormasyon o wala pang naipadalang maintenance request.'
+                ], 200);
+            }
+
+            return response()->json([
+                'data' => $maintenanceRequestsStatus
+            ]);
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Query Data failed', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Pasensya na, sa ngayon hindi ko ma iproseso ang nais mo.']);
+        }
+    }
+
+    public function checkBalance($firstname, $lastname, $unitName, $unitType)
+    {
+        try{
+            $user = Account::where('firstname', $firstname)
+            ->where('lastname', $lastname)
+            ->first();
+
+            if (!$user) {
+                return response()->json(['message' => 'Pasensya na, hindi ko mahanap ang iyong pangalan. Siguraduhing tama ang iyong ibinigay at nakarehistro sa aming sistema.']);
+            }
+
+            $userId = $user->id;
+
+            $unitRented = RentalAgreement::with('rentedUnit')
+            ->where('tenant_id', $userId)
+            ->first();
+
+            if (!$unitRented || !$unitRented->rentedUnit) {
+                return response()->json([
+                    'message' => 'Pasensya na, wala kang kasalukuyang rental agreement.'
+                ], 200);
+            }
+
+            $isBoardingHouse = strtolower($unitRented->rentedUnit->property_type) === 'boarding house';
+            $isApartment = strtolower($unitRented->rentedUnit->property_type) === 'apartment';
+    
+            // Validate unit name and type
+            if ($isBoardingHouse) {
+                if ($unitRented->rentedUnit->boarding_house_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang boarding house na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } elseif ($isApartment) {
+                if ($unitRented->rentedUnit->apartment_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                    return response()->json([
+                        'message' => 'Pasensya na, hindi ko mahanap ang apartment na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                    ], 200);
+                }
+            } else {
+                return response()->json([
+                    'message' => 'Pasensya na, hindi ko mahanap ang unit na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                ], 200);
+            } 
+
+            $totalOverdue = Deliquent::where('tenant_id', $userId)
+            ->where('status', 'Overdue')
+            ->sum('amount_overdue'); 
+
+            
+            if(!$totalOverdue){
+                return response()->json([
+                    'message' => 'Sa ngayon walang kang balanse'
+                ]);
+            }
+
+            $dueDates = Deliquent::where('tenant_id', $userId)
+            ->where('status', 'Overdue')
+            ->pluck('month_overdue'); 
+    
+
+            $formattedDueDates = [];
+            foreach ($dueDates as $dueDate) {
+                $formattedDueDates[] = Carbon::parse($dueDate)->format('F j, Y'); 
+            }   
+            $dueDatesString = implode(', ', $formattedDueDates);
+    
+            return response()->json([
+                'data' => $totalOverdue,
+                'date' => $dueDatesString
+            ]);
+                
+
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Query Data failed', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Pasensya na, sa ngayon hindi ko ma iproseso ang nais mo.']);
+        }
+    }
+
+    public function landLordContactInfo()
+    {
+        try{
+            $info = Account::where('user_type', 'Landlord')->first();
+            if(!$info){
+                return response()->json([
+                    'message' => 'Pasensya na, wala akong makita na contact information'
+                ]);
+            }
+            // $user = Auth()->user();
+
+            return response()->json([
+                'contact' => $info->contact,
+                'email' => $info->email,
+            ]);
+        }catch (\Exception $e) {
+            return response()->json(['message' => 'Query Data failed', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Pasensya na, sa ngayon hindi ko ma iproseso ang nais mo.']);
+        }
+    }
+
+    
+
+    
 }

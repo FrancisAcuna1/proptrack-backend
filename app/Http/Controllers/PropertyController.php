@@ -16,7 +16,8 @@ use App\Models\BoardingHouseInclusion;
 use App\Models\Inclusion;
 use App\Models\PropertiesImage;
 use Illuminate\Support\Facades\File;
-
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 
 use App\Models\Units;
 
@@ -719,6 +720,7 @@ class PropertyController extends Controller
                 'municipality' => 'required|string|max:35',
                 'image.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:3050',
                 'deleted_images' => 'nullable|string',
+                'moveoutdate' => 'nullable|date_format:m/d/Y'
             ]);
 
             $apartment = Apartment::with('images')->find($id);
@@ -728,6 +730,8 @@ class PropertyController extends Controller
                 ], 404);
             }
     
+            Log::info('Move Out Date:', ['moveoutdate' => $validateData['moveoutdate']]);
+
             // Handle deleted images
             if ($request->has('deleted_images')) {
                 $deletedImages = json_decode($request->deleted_images, true);
@@ -783,7 +787,7 @@ class PropertyController extends Controller
             $apartment->street = $validateData['street'];
             $apartment->barangay = $validateData['barangay'];
             $apartment->municipality = $validateData['municipality'];
-
+            $apartment->move_out_date = !empty($validateData['moveoutdate']) ?  Carbon::createFromFormat('m/d/Y', $validateData['moveoutdate'])->format('Y-m-d') : null;
             $apartment->save();
 
             
@@ -930,8 +934,8 @@ class PropertyController extends Controller
                 'rooms.*.beds.*.bed_number' => 'required|integer',
                 'rooms.*.beds.*.price' => 'required|string', // Assuming bed_type is optional
                 'rooms.*.beds.*.status' => 'required|string', 
+                'rooms.*.beds.*.move_out_date' => 'nullable|date_format:m/d/Y',
                 'deleted_images' => 'nullable|string',
-               
             ]);
 
             $boardinghouse = BoardingHouse::with('images')->find($id);
@@ -1096,7 +1100,9 @@ class PropertyController extends Controller
                             // Update existing bed
                             $existingBed->update([
                                 'price' => $bed['price'],
-                                'status' => $bed['status']
+                                'status' => $bed['status'],
+                                'move_out_date' => isset($bed['move_out_date']) ? 
+                                Carbon::createFromFormat('m/d/Y', $bed['move_out_date'])->format('Y-m-d') : null
                             ]);
                         } else {
                             // Add new bed
