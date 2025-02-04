@@ -20,6 +20,7 @@ class PaymentTransactions extends Model
         'rented_unit_type',
         'amount',
         'date',
+        'paid_for_month',
         'transaction_type',
         'status',
         'months_covered'

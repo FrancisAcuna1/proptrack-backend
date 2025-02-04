@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Log; // Import Log at the top
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Models\Account;
@@ -106,6 +107,7 @@ class RegistrationController extends Controller
             }
 
             $totalAmount = $validatedData['initial_payment'];
+
              // Create initial payment transaction
             PaymentTransactions::create([
                 'tenant_id' => $tenant->id,
@@ -115,6 +117,7 @@ class RegistrationController extends Controller
                 'amount' => $validatedData['initial_payment'],
                 'months_covered' => 1,
                 'date' => Carbon::now()->format('Y-m-d'),
+                'paid_for_month' => Carbon::now()->format('Y-m-d'),
                 'status' => 'Paid',
             ]);
 
@@ -128,6 +131,7 @@ class RegistrationController extends Controller
                 'amount' => $validatedData['deposit'],
                 'months_covered' => null,
                 'date' => Carbon::now()->format('Y-m-d'),
+                'paid_for_month' => null,
                 'status' => 'Paid',
             ]);
             
@@ -263,6 +267,7 @@ class RegistrationController extends Controller
                 'amount' => $validatedData['initial_payment'],
                 'months_covered' => 1,
                 'date' => Carbon::now()->format('Y-m-d'),
+                'paid_for_month' => Carbon::now()->format('Y-m-d'),
                 'status' => 'Paid',
             ]);
 
@@ -276,6 +281,7 @@ class RegistrationController extends Controller
                 'amount' => $validatedData['deposit'],
                 'months_covered' => null,
                 'date' => Carbon::now()->format('Y-m-d'),
+                'paid_for_month' => null,
                 'status' => 'Paid',
             ]);
             
@@ -290,6 +296,7 @@ class RegistrationController extends Controller
                     'amount' => $validatedData['advancepayment'],
                     'months_covered' => empty($validatedData['advancepayment']) ? null : $validatedData['prepaidrentperiod'] - 1,
                     'date' => Carbon::now()->format('Y-m-d'),
+                    'paid_for_month' => Carbon::now()->format('Y-m-d'),
                     'status' => 'Paid',
                 ]);
             }
@@ -416,8 +423,8 @@ class RegistrationController extends Controller
     public function Update_Tenant(Request $request, $id)
     {
         try{
-
             $validatedData = $request->validate([
+                'id' => 'required|integer',
                 'firstname' => 'required|string|max:25',
                 'middlename' => 'nullable|string|max:16',
                 'lastname' => 'required|string|max:16',
@@ -430,20 +437,33 @@ class RegistrationController extends Controller
                 'municipality' => 'required|string',
             ]);
 
+            Log::info('validated Tenant Data:', $validatedData);
+
             $updateTenant = Account::find($id);
             if (!$updateTenant) {
                 return response()->json(['message' => 'Tenant Not Found'], 404);
             }
 
-            if($updateTenant->firstname !== $validatedData['firstname'] || $updateTenant->lastname !== $validatedData['lastname']){
-                $existingTenant = Account::where('firstname', $validatedData['firstname'])
+            $existingTenant = Account::where('firstname', $validatedData['firstname'])
                 ->where('lastname', $validatedData['lastname'])
                 ->first();
 
-                if ($existingTenant) {
-                    return response()->json(['message' => 'Tenant with the updated name is already exists'], 400);
-                }
+            // Ensure $existingTenant is not null before accessing id
+            if ($existingTenant && $existingTenant->id !== (int) $validatedData['id']) {
+                return response()->json(['message' => 'Tenant with the updated name already exists'], 400);
             }
+
+
+
+            // if($updateTenant->firstname !== $validatedData['firstname'] || $updateTenant->lastname !== $validatedData['lastname']){
+            //     $existingTenant = Account::where('firstname', $validatedData['firstname'])
+            //     ->where('lastname', $validatedData['lastname'])
+            //     ->first();
+
+            //     if ($existingTenant) {
+            //         return response()->json(['message' => 'Tenant with the updated name is already exists'], 400);
+            //     }
+            // }
 
             $updateTenant->firstname = $validatedData['firstname'];
             $updateTenant->middlename = $validatedData['middlename'];

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-
+use Illuminate\Support\Facades\Log; // Import Log at the top
 use Illuminate\Http\Request;
 use Illuminate\Http\validatedData;
 use App\Models\Account;
@@ -120,6 +120,7 @@ class RevenueController extends Controller
                         'rented_unit_type' => $payment->rented_unit_type,
                         'amount' => (float)$payment->amount,
                         'date' => $payment->date,
+                        'paid_for_month' => $payment->paid_for_month,
                         'transaction_type' => $payment->transaction_type,
                         'months_covered' => $payment->months_covered,
                         'status' => $payment->status,
@@ -164,7 +165,10 @@ class RevenueController extends Controller
                 'status' => 'required|string',
                 'months_covered' => 'nullable|integer',
                 'selected_months' => 'nullable|array',
+                'paid_for_month' => 'nullable|date_format:m/d/Y'
             ]);
+
+            Log::info('validated Tenant Data:', $validatedData);
 
             $existing = PaymentTransactions::where('tenant_id', $validatedData['tenant_id'])
             ->where('date',Carbon::createFromFormat('m/d/Y', $validatedData['payment_date'])->format('Y-m-d'))
@@ -183,6 +187,7 @@ class RevenueController extends Controller
                 'rented_unit_type' => $rentalAgreement->rented_unit_type,
                 'amount' => $validatedData['amount'],
                 'date' => Carbon::createFromFormat('m/d/Y', $validatedData['payment_date'])->format('Y-m-d'),
+                'paid_for_month' => Carbon::createFromFormat('m/d/Y', $validatedData['paid_for_month'])->format('Y-m-d'),
                 'transaction_type' => $validatedData['transaction_type'],
                 'status' => $validatedData['status'],
                 'months_covered' => $validatedData['months_covered'] ?? null,
@@ -568,7 +573,9 @@ class RevenueController extends Controller
 
             //    // Check if any data is returned
             if ($filter->isEmpty()) {
-                return response()->json(['message' => 'No payment found for the specified filters!']);
+                return response()->json([
+                    'message' => 'No payment found for the specified filters!'
+                ]);
             }
             
             return response()->json([

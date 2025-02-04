@@ -35,6 +35,10 @@ class RentalController extends Controller
         try{
             $payment = PaymentTransactions::with('tenant.rentalAgreement')->where('tenant_id', $tenantId)->get();
 
+            if ($payment->isEmpty()) {
+                return response()->json(['message' => 'No payment found for the specified filters!']);
+            }
+
             return response()->json([
                 'message' => 'Success',
                 'data' => $payment,

@@ -191,7 +191,7 @@ class PropertyController extends Controller
             try{
                 $propertyData = $request->validate([
                     'propertyid' => 'required|integer',
-                    'apartmentname' => 'required|string|max:24',
+                    'apartmentname' => 'required|string|max:64',
                     'numberofrooms' => 'required|integer',
                     'capacity' => 'required|integer',
                     'rentalfee' => 'required|numeric',
@@ -303,7 +303,7 @@ class PropertyController extends Controller
 
                 $propertyData = $request->validate([
                     'propertyid' => 'required|integer',
-                    'boardinghousename' => 'required|string|max:24',
+                    'boardinghousename' => 'required|string|max:64',
                     'numberofrooms' => 'required|integer',
                     'capacity' => 'required|integer',
                     // 'rentalfee' => 'required|numeric',
@@ -706,7 +706,7 @@ class PropertyController extends Controller
         try{
             $validateData = $request->validate([
                 'propertyid' => 'required|integer',
-                'apartmentname' => 'required|string|max:24',
+                'apartmentname' => 'required|string|max:64',
                 'numberofrooms' => 'required|integer',
                 'capacity' => 'required|integer',
                 'rentalfee' => 'required|numeric',
@@ -731,6 +731,7 @@ class PropertyController extends Controller
             }
     
             Log::info('Move Out Date:', ['moveoutdate' => $validateData['moveoutdate']]);
+            Log::info('Data Inputed:', $validateData);
 
             // Handle deleted images
             if ($request->has('deleted_images')) {

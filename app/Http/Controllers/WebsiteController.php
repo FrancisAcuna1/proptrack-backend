@@ -48,7 +48,7 @@ class WebsiteController extends Controller
     {
         try{
             // $apartment = Property::with(['apartments' ])->get();
-            $allApartment = Apartment::with('inclusions.equipment')->get();
+            $allApartment = Apartment::with('inclusions.equipment', 'images')->get();
             return response()->json([
                 'message' => 'Query all Apartment Successfully',
                 'data' => $allApartment,
@@ -61,7 +61,7 @@ class WebsiteController extends Controller
     public function All_BoardingHouse()
     {
         try{
-            $boardinghouse = BoardingHouse::with(['rooms.beds', 'inclusions.equipment' ])->get();
+            $boardinghouse = BoardingHouse::with(['rooms.beds', 'inclusions.equipment', 'images'])->get();
             return response()->json([
                 'message' => 'Query all Boardinghouse Successfully',
                 'data' => $boardinghouse,
@@ -74,8 +74,8 @@ class WebsiteController extends Controller
     public function All_Available($status)
     {
         try{
-            $availableApartment = Apartment::where('status', $status)->get();
-            $availableBoardinghouse = BoardingHouse::where('status', $status)->get();
+            $availableApartment = Apartment::with('images')->where('status', $status)->get();
+            $availableBoardinghouse = BoardingHouse::with('images')->where('status', $status)->get();
             
            
 
@@ -92,8 +92,8 @@ class WebsiteController extends Controller
     public function All_Occupied($status)
     {
         try{
-            $occupiedApartment = Apartment::where('status', $status)->get();
-            $occupiedBoardinghouse = BoardingHouse::where('status', $status)->get();
+            $occupiedApartment = Apartment::with('images')->where('status', $status)->get();
+            $occupiedBoardinghouse = BoardingHouse::with('images')->where('status', $status)->get();
 
             return response()->json([
                 'message' => 'Query all Occupied Property Successfully',

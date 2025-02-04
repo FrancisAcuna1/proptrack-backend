@@ -17,6 +17,7 @@ use App\http\Controllers\NotificationsController;
 use App\http\Controllers\DeliquentController;
 use App\http\Controllers\RecurringExpensesController;
 use App\http\Controllers\ChatbotController;
+use App\http\Controllers\UpComingDueDateController;
 /*
 /*
 
@@ -59,6 +60,7 @@ Route::get('/boardinghousedetails/{id}/{unitId}', [WebsiteController::class, 'Bo
  Route::get('chatbot/find_Maintenance_Request_Status/{firstname}/{lastname}/{reportedItem}/{reportedDate}/{unitName}/{unitType}', [ChatbotController::class, 'findMaintenanceRequestStatus']);
  Route::get('chatbot/check_balance/{firstname}/{lastname}/{unitName}/{unitType}', [ChatbotController::class, 'checkBalance']);
  Route::get('chatbot/landlord_contact_info', [ChatbotController::class, 'landLordContactInfo']);
+ Route::get('chatbot/check_next_duedate/{firstname}/{lastname}/{unitName}/{unitType}', [ChatbotController::class, 'checkNextDuedate']);
 
 
 Route::middleware('auth:sanctum')->group(function() {
@@ -197,7 +199,9 @@ Route::middleware('auth:sanctum')->group(function() {
     Route::post('generate_otp', [ChangePasswordController::class, 'Generate_Otp']);
     Route::post('resend_otp', [ChangePasswordController::class, 'Resend_Otp']);
     Route::put('change_password', [ChangePasswordController::class, 'Change_Password_OTP']);
-    
+
+    //Upcoming Due Dates
+    Route::get('get_all_units/{tenantId}', [UpComingDueDateController::class, 'GetAllUnits']);
 });
 
 

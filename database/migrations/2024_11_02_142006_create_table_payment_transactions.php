@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('rented_unit_type');
             $table->decimal('amount', 10, 2);
             $table->date('date');
+            $table->date('paid_for_month');
             $table->string('transaction_type');
             $table->integer('months_covered')->nullable();
             $table->string('status');

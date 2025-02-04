@@ -535,7 +535,116 @@ class ChatbotController extends Controller
         }
     }
 
-    
+    public function checkNextDuedate($firstname, $lastname, $unitName, $unitType)
+    {
+        $user = Account::where('firstname', $firstname)
+            ->where('lastname', $lastname)
+            ->first();
 
+        if (!$user) {
+            return response()->json(['message' => 'Pasensya na, hindi ko mahanap ang iyong pangalan. Siguraduhing tama ang iyong ibinigay at nakarehistro sa aming sistema.']);
+        }
+
+        $userId = $user->id;
+
+        $unitRented = RentalAgreement::with('rentedUnit')
+        ->where('tenant_id', $userId)
+        ->first();
+
+        if (!$unitRented || !$unitRented->rentedUnit) {
+            return response()->json([
+                'message' => 'Pasensya na, wala kang kasalukuyang rental agreement.'
+            ], 200);
+        }
+
+        $isBoardingHouse = strtolower($unitRented->rentedUnit->property_type) === 'boarding house';
+        $isApartment = strtolower($unitRented->rentedUnit->property_type) === 'apartment';
+
+         // Validate unit name and type
+        if ($isBoardingHouse) {
+            if ($unitRented->rentedUnit->boarding_house_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                return response()->json([
+                    'message' => 'Pasensya na, hindi ko mahanap ang boarding house na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                ], 200);
+            }
+        } elseif ($isApartment) {
+            if ($unitRented->rentedUnit->apartment_name !== $unitName || $unitRented->rentedUnit->property_type !== $unitType) {
+                return response()->json([
+                    'message' => 'Pasensya na, hindi ko mahanap ang apartment na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+                ], 200);
+            }
+        } else {
+            return response()->json([
+                'message' => 'Pasensya na, hindi ko mahanap ang unit na iyong tinutukoy. Siguraduhing tama ang iyong ibinigay na unit name at unit type.'
+            ], 200);
+        } 
+
+        $paymentDetails = PaymentTransactions::where('tenant_id', $userId)
+        ->whereIn('transaction_type', ['Rental Fee', 'Initial Payment', 'Advance Payment'])
+        ->orderBy('date', 'desc') // Order by latest payment date
+        ->get();
+
+        $rentalFee = RentalAgreement::where('tenant_id', $userId)
+        ->pluck('rental_fee')
+        ->first();
+
+        if(!$rentalFee){
+            return response()->json([
+                'response' => 'Walang mahanap na datos sa',
+            ], 204);
+        }
+
+         // Check if there are any relevant payments
+        if ($paymentDetails->isEmpty()) {
+            return response()->json([
+                'response' => 'Walang pang naitalang bayad'
+            ], 204);
+        }
+
+        $lastPayment = $paymentDetails->first();
+        $lastPaymentDate = Carbon::parse($lastPayment->date);
+        $totalMonthsCovered = 0;
+
+        $groupedPayments = $paymentDetails->groupBy(function ($payment) {
+            return Carbon::parse($payment->date)->format('Y-m-d'); // Group by exact date
+        });
+
+        if ($lastPayment->transaction_type === 'Rental Fee') {
+            $totalMonthsCovered = $lastPayment->months_covered ?? 1; 
+        } else {
+
+            $groupedPayments = $paymentDetails->groupBy(function ($payment) {
+                return Carbon::parse($payment->date)->format('Y-m-d'); // Group by exact date
+            });
     
+            foreach ($groupedPayments as $date => $payments) {
+                // Only consider the date of the last payment
+                if ($date === $lastPaymentDate->format('Y-m-d')) {
+                    foreach ($payments as $payment) {
+                        if (in_array($payment->transaction_type, ['Initial Payment', 'Advance Payment'])) {
+                            $totalMonthsCovered += $payment->months_covered ?? 0; // Add months covered
+                        }
+                    }
+                    break; // Only process the last payment's date
+                }
+            }
+        }
+
+        $nextDuedate = $lastPaymentDate->addMonths($totalMonthsCovered);
+        $formattedNextDuedate = $nextDuedate->format('F j, Y');
+
+        Log::info('NextDuedate Data:', [
+            'date' => $lastPayment ?? null,
+        ]);
+        Log::info('Months Covered:', [
+            'total' => $totalMonthsCovered,
+            'group' => $groupedPayments
+        ]);
+
+        Log::info('NextDuedate Data:', [
+            'date' => $formattedNextDuedate ?? null,
+            'amount' => $rentalFee
+        ]);
+        return 'Ang susunod na petsa ng bayarin ay: '.$formattedNextDuedate."\n".'Sa halaga na '.$rentalFee.' pesos';
+    }
 }

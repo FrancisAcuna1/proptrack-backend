@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Deliquent;
 use Carbon\Carbon;
-
+use Illuminate\Support\Facades\Log;
 
 
 class DeliquentController extends Controller
@@ -32,6 +32,13 @@ class DeliquentController extends Controller
                     'message' => 'Deliquent already exists for this tenant',
                 ], 404);
             }
+
+            Log::info('Storing Deliquent data:', [
+                'tenant_id' => $validateData['tenant_id'],
+                'amount_overdue' => $validateData['amount_overdue'],
+                'month_overdue' => $dueDate,
+                'status' => $validateData['status']
+            ]);
 
             $data = [
                 'tenant_id' => $validateData['tenant_id'],

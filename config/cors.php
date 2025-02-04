@@ -20,7 +20,8 @@ return [
     'allowed_methods' => ['GET', 'POST', 'PUT', 'DELETE'],
 
     'allowed_origins' => [
-        'http://localhost:3000'
+        'http://localhost:3000',
+        'https://proptrack-capstone-system.vercel.app'
     ],
 
     'allowed_origins_patterns' => [],
