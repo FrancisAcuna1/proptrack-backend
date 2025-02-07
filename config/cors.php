@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => [
         'http://localhost:3000',
-        'https://proptrack-capstone-system.vercel.app'
+        'https://sorciproptrack.com'
     ],
 
     'allowed_origins_patterns' => [],
