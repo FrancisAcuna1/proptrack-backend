@@ -187,7 +187,7 @@ class RevenueController extends Controller
                 'rented_unit_type' => $rentalAgreement->rented_unit_type,
                 'amount' => $validatedData['amount'],
                 'date' => Carbon::createFromFormat('m/d/Y', $validatedData['payment_date'])->format('Y-m-d'),
-                'paid_for_month' => Carbon::createFromFormat('m/d/Y', $validatedData['paid_for_month'])->format('Y-m-d'),
+                'paid_for_month' => $validatedData['paid_for_month'] ? Carbon::createFromFormat('m/d/Y', $validatedData['paid_for_month'])->format('Y-m-d') : null,
                 'transaction_type' => $validatedData['transaction_type'],
                 'status' => $validatedData['status'],
                 'months_covered' => $validatedData['months_covered'] ?? null,
@@ -549,7 +549,7 @@ class RevenueController extends Controller
     public function Filter_Payment(Request $request, $category)
     {
         try{
-            $validCategory = ['Initial Payment', 'Advance Payment', 'Rental Fee', 'Penalties', 'Extra Amenities', 'Damage Compensation', 'Replacement Fee'];
+            $validCategory = ['Initial Payment', 'Advance Payment', 'Security Deposit', 'Rental Fee', 'Penalties', 'Extra Amenities', 'Damage Compensation', 'Replacement Fee'];
 
              // Get the year and month from the request (optional, default to current year/month)
             $year = $request->input('year', Carbon::now()->year);

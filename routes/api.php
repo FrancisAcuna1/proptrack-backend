@@ -62,11 +62,11 @@ Route::get('/boardinghousedetails/{id}/{unitId}', [WebsiteController::class, 'Bo
  Route::get('chatbot/landlord_contact_info', [ChatbotController::class, 'landLordContactInfo']);
  Route::get('chatbot/check_next_duedate/{firstname}/{lastname}/{unitName}/{unitType}', [ChatbotController::class, 'checkNextDuedate']);
 
-
 Route::middleware('auth:sanctum')->group(function() {
     Route::get('/userdata', [AuthenticationController::class, 'user']); // display user info
     Route::post('/logout', [AuthenticationController::class, 'logout']); // logout
-    
+
+ 
     // Registration Controller
     Route::post('/apartment_tenant_registration', [RegistrationController::class, 'Apartment_Tenant_Registration']); 
     Route::post('/bh_tenant_registration', [RegistrationController::class, 'Boardinghouse_Tenant_Registration']);

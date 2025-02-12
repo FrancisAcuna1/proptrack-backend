@@ -180,6 +180,8 @@ class PropertyController extends Controller
 
     public function Store_Apartment(Request $request)
     {
+       
+        
         $existingApartment = Apartment::where('apartment_name',$request->input('apartmentname'))
         ->where('property_id', $request->input('propertyid'))
         ->first();
@@ -203,19 +205,13 @@ class PropertyController extends Controller
                     'street' => 'required|string|max:35',
                     'barangay' => 'required|string|max:35',
                     'municipality' => 'required|string|max:35',
-                    'image.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:3050',
-                    
+                    'image.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+                    // 'moveoutdate' => 'nullable'
                 ]);
 
+                // Log::info('Move Out Date:', ['moveoutdate' => $validateData['moveoutdate']]);
+                \Log::info("Received Data: ", $request->all());
                 
-                // $fileName = null;
-    
-                // if ($request->hasFile('image')) {
-                //     $fileName = time() . '.' . $request->file('image')->getClientOriginalExtension();
-                //     $imagePath = 'images/' . $fileName; // Store relative path
-                //     $request->file('image')->move(public_path('ApartmentImage'), $fileName); // Move to public/images
-                // }
-    
                 $inclusions = json_decode($propertyData['inclusion'], true);
                 foreach ($inclusions as &$inclusion) {
                     if (!isset($inclusion['quantity']) || $inclusion['quantity'] < 1) {
@@ -240,6 +236,7 @@ class PropertyController extends Controller
                     'street' => $propertyData['street'],
                     'barangay' => $propertyData['barangay'],
                     'municipality' => $propertyData['municipality'],
+
                     // 'image' => $fileName,
                 ];
     
@@ -273,7 +270,6 @@ class PropertyController extends Controller
     
     
                 return response()->json([
-                        
                     'message' => 'Created Apartment Successfully',
                     'apartment' => $apartment
                 ], 200);
@@ -311,7 +307,7 @@ class PropertyController extends Controller
                     'status' => 'required|string',
                     'property_type' => 'required|string',
                     'inclusion' => 'required|json',
-                    'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:3050',
+                    'images.*' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
                     'buildingno' => 'required|string',
                     'street' => 'required|string|max:35',
                     'barangay' => 'required|string|max:35',
