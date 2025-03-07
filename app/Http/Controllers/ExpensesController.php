@@ -42,6 +42,7 @@ class ExpensesController extends Controller
                 'type' => 'required|string',
                 'category' => 'required|string',
                 'type_of_bills' => 'nullable|string',
+                'type_of_tax' => 'nullable|string',
                 'amount' => 'required|numeric',
                 'expenseDate' => 'required|date_format:m/d/Y',
                 'description' => 'nullable|string|min:1|max:2500',
@@ -64,13 +65,13 @@ class ExpensesController extends Controller
                 ], 409); // 409 Conflict
             }
 
-
             $data = [
                 'unit_id' => $validatedData['unitId'],
                 'unit_type' => $validatedData['type'],
                 'amount' => $validatedData['amount'],
                 'category' => $validatedData['category'],
                 'type_of_bills' => !empty($validatedData['type_of_bills']) ? $validatedData['type_of_bills'] : null,
+                'type_of_tax' => !empty($validatedData['type_of_tax']) ? $validatedData['type_of_tax'] : null,
                 'description' => $validatedData['description'],
                 'expense_date' => Carbon::createFromFormat('m/d/Y', $validatedData['expenseDate'])->format('Y-m-d'),
                 'recurring' => 0,
@@ -125,6 +126,7 @@ class ExpensesController extends Controller
                 'type' => 'required|string',
                 'category' => 'required|string',
                 'type_of_bills' => 'nullable|string',
+                'type_of_tax' => 'nullable|string',
                 'amount' => 'required|numeric',
                 'expenseDate' => 'required|date_format:m/d/Y',
                 'description' => 'nullable|string|min:1|max:2500',
@@ -140,7 +142,8 @@ class ExpensesController extends Controller
             $updateExpenses->unit_id = $validatedData['unitId'];
             $updateExpenses->unit_type = $validatedData['type'];
             $updateExpenses->category = $validatedData['category'];
-            $updateExpenses->type_of_bills = $validatedData['type_of_bills'];
+            $updateExpenses->type_of_bills = !empty($validatedData['type_of_bills']) ? $validatedData['type_of_bills'] : null;
+            $updateExpenses->type_of_tax = !empty($validatedData['type_of_tax']) ? $validatedData['type_of_tax'] : null;
             $updateExpenses->amount = $validatedData['amount'];
             $updateExpenses->expense_date = Carbon::createFromFormat('m/d/Y', $validatedData['expenseDate'])->format('Y-m-d');
             $updateExpenses->description = $validatedData['description'];
@@ -204,7 +207,7 @@ class ExpensesController extends Controller
     public function Filter_Expenses(Request $request, $category)
     {
         try{
-            $validCategory = ['maintenance fee', 'utility bill', 'recurring'];
+            $validCategory = ['maintenance fee', 'utility bill', 'tax', 'recurring'];
 
             $year = $request->input('year', Carbon::now()->year);
             $month = $request->input('month'); // If no month is provided, it's null
@@ -217,7 +220,7 @@ class ExpensesController extends Controller
 
             $expenseValue = [];
 
-            if($category === 'maintenance fee' || $category === 'utility bill'){
+            if($category === 'maintenance fee' || $category === 'utility bill' || $category === 'tax'){
                 $query = Expenses::with('unit')->where('category' ,$category)
                 ->whereYear('expense_date' ,$year);
 

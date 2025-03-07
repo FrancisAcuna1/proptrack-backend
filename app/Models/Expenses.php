@@ -19,6 +19,7 @@ class Expenses extends Model
         'unit_type',
         'category',
         'type_of_bills',
+        'type_of_tax',
         'amount',
         'description',
         'expense_date',

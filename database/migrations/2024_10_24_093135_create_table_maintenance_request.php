@@ -20,6 +20,7 @@ return new class extends Migration
             $table->text('issue_description');
             $table->date('date_reported');
             $table->string('status');
+            $table->date('urgency_level')->nullable();
             $table->text('remarks')->nullable();
             $table->boolean('is_schedule')->nullable();
             $table->timestamps();

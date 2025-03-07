@@ -23,6 +23,7 @@ class MaintenanceRequest extends Model
         'date_reported',
         'is_schedule',
         'status',
+        'urgency_level',
         'remarks',
         'created_at', // Manually handle these
         'updated_at', // Manually handle these

@@ -48,7 +48,8 @@ class MaintenanceController extends Controller
                 'issue_description' => 'required|string|min:1',
                 'date_reported' => 'required|date_format:m/d/Y',
                 'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:3050',
-                'unitName' => 'nullable|string'
+                'unitName' => 'nullable|string',
+                'urgency' => 'nullable|string'
                 // 'is_schedule' => 'nullable|boolean',
                 //'unit_type' => 'required|string',
             ]);
@@ -79,6 +80,7 @@ class MaintenanceController extends Controller
                 'status' => $validatedData['status'],
                 // 'unit_type' => $validatedData['unit_type'],
                 'issue_description' => $validatedData['issue_description'],
+                'urgency_level' => $validatedData['urgency'],
                 'is_schedule' => false,
                 'date_reported' => Carbon::createFromFormat('m/d/Y', $validatedData['date_reported'])->format('Y-m-d'),
                 'created_at' => Carbon::now('Asia/Manila'), // Set to current PHT
@@ -162,6 +164,7 @@ class MaintenanceController extends Controller
             }
 
             $maintenanceRequest->status = 'Accepted';
+            $maintenanceRequest->updated_at = Carbon::now('Asia/Manila'); 
             $maintenanceRequest->save();
 
             // $tenantEmail = $maintenanceRequest->tenant->email;
@@ -217,6 +220,7 @@ class MaintenanceController extends Controller
 
             $maintenanceRequest->status = 'Rejected';
             $maintenanceRequest->remarks = $validatedData['remarks']?? null;
+            $maintenanceRequest->updated_at = Carbon::now('Asia/Manila'); 
             $maintenanceRequest->save();
 
             $tenant = $maintenanceRequest->tenant;

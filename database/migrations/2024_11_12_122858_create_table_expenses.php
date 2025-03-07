@@ -16,6 +16,7 @@ return new class extends Migration
             $table->morphs('unit');
             $table->string('category');
             $table->string('type_of_bills')->nullable();
+            $table->string('type_of_tax')->nullable();
             $table->decimal('amount');
             $table->date('expense_date');
             $table->string('frequency')->nullable();
