@@ -212,17 +212,6 @@ class PropertyController extends Controller
                 // Log::info('Move Out Date:', ['moveoutdate' => $validateData['moveoutdate']]);
                 \Log::info("Received Data: ", $request->all());
                 
-                $inclusions = json_decode($propertyData['inclusion'], true);
-                foreach ($inclusions as &$inclusion) {
-                    if (!isset($inclusion['quantity']) || $inclusion['quantity'] < 1) {
-                        $inclusion['quantity'] = 1; // Default to 1 if not set or less than 1
-                    }
-                }
-    
-                $inclusionNames = implode(', ', array_map(function($inclusion) {
-                    return isset($inclusion['name']) ? $inclusion['name'] : 'Unknown Inclusion';
-                }, $inclusions));
-        
                 $data = [
                     'property_id' => $propertyData['propertyid'],
                     'apartment_name' => $propertyData['apartmentname'],
@@ -239,8 +228,6 @@ class PropertyController extends Controller
 
                     // 'image' => $fileName,
                 ];
-    
-               
         
                 $apartment = Apartment::create($data);
 
@@ -259,19 +246,32 @@ class PropertyController extends Controller
                     }
                 } 
 
+                $inclusions = json_decode($propertyData['inclusion'], true);
+
+                // this is the only changes 
+                // foreach ($inclusions as &$inclusion) {
+                //     if (!isset($inclusion['quantity']) || $inclusion['quantity'] < 1) {
+                //         $inclusion['quantity'] = 1; // Default to 1 if not set or less than 1
+                //     }
+                // }
+    
+                $inclusionNames = implode(', ', array_map(function($inclusion) {
+                    return isset($inclusion['name']) ? $inclusion['name'] : 'Unknown Inclusion';
+                }, $inclusions));
+                
+
                 foreach ($inclusions as $inclusion) {
                     Inclusion::create([
-                        'unit_id' => $apartment->id,
+                        'unit_id'      => $apartment->id,
                         'equipment_id' => $inclusion['id'],
-                        'unit_type' => $apartment->property_type,
-                        'quantity' => $inclusion['quantity']
+                        'unit_type'    => $apartment->property_type,
+                        'quantity'     => $inclusion['quantity']
                     ]);
                 }
-    
-    
+
                 return response()->json([
                     'message' => 'Created Apartment Successfully',
-                    'apartment' => $apartment
+                    'apartment' => $apartment,
                 ], 200);
     
             }catch (\Exception $e) {
@@ -725,6 +725,18 @@ class PropertyController extends Controller
                     'message' => 'Apartment Not Found',
                 ], 404);
             }
+
+             // Duplicate Checking: Prevent update if the apartment details already exist
+            $existingApartment = Apartment::where('apartment_name', $request->apartmentname)
+            ->where('property_id', $request->propertyid)
+            ->where('id', '!=', $id)  // Exclude current apartment from the check
+            ->first();
+
+            if ($existingApartment) {
+                return response()->json([
+                    'message' => 'An apartment with the same name and property already exists.',
+                ], 400);
+            }
     
             Log::info('Move Out Date:', ['moveoutdate' => $validateData['moveoutdate']]);
             Log::info('Data Inputed:', $validateData);
@@ -941,6 +953,19 @@ class PropertyController extends Controller
                     'message' => 'Boarding House Not Found',
                 ], 404);
             }
+
+             // Duplicate Checking: Prevent update if the apartment details already exist
+            $existingBoardingHouse = BoardingHouse::where('boarding_house_name', $request->boardinghousename)
+            ->where('property_id', $request->propertyid)
+            ->where('id', '!=', $id)  // Exclude current apartment from the check
+            ->first();
+
+            if ($existingBoardingHouse) {
+                return response()->json([
+                    'message' => 'An boarding house with the same name already exists.',
+                ], 400);
+            }
+     
 
             // Handle deleted images
             if ($request->has('deleted_images')) {

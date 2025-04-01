@@ -146,6 +146,7 @@ class RegistrationController extends Controller
                     'amount' => $validatedData['advancepayment'],
                     'months_covered' => empty($validatedData['advancepayment']) ? null : $validatedData['prepaidrentperiod'] - 1,
                     'date' => Carbon::now()->format('Y-m-d'),
+                    'paid_for_month' => Carbon::now()->addMonths($validatedData['prepaidrentperiod'] - 1)->format('Y-m-d'),
                     'status' => 'Paid',
                 ]);
             }
@@ -296,7 +297,7 @@ class RegistrationController extends Controller
                     'amount' => $validatedData['advancepayment'],
                     'months_covered' => empty($validatedData['advancepayment']) ? null : $validatedData['prepaidrentperiod'] - 1,
                     'date' => Carbon::now()->format('Y-m-d'),
-                    'paid_for_month' => Carbon::now()->format('Y-m-d'),
+                    'paid_for_month' => Carbon::now()->addMonths($validatedData['prepaidrentperiod'] - 1)->format('Y-m-d'),
                     'status' => 'Paid',
                 ]);
             }

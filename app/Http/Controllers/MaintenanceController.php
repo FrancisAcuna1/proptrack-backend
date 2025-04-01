@@ -318,10 +318,11 @@ class MaintenanceController extends Controller
                 'otherissues' => 'nullable|string|min:1',
                 'reported_issue' => 'nullable|string',
                 'status' => 'required|string',
+                'urgency' => 'nullable|string',
                 'issue_description' => 'required|string|min:1',
                 'date_reported' => 'required|date_format:m/d/Y',
                 'images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:3050',
-                 'remove_images.*' => 'nullable|integer'
+                'remove_images.*' => 'nullable|integer'
                 // 'is_schedule' => 'nullable|boolean',
                 //'unit_type' => 'required|string',
             ]);
@@ -336,6 +337,7 @@ class MaintenanceController extends Controller
             $update->other_issue = !empty($validatedData['otherissues']) ? $validatedData['otherissues'] : null;
             $update->reported_issue = !empty($validatedData['reported_issue']) ? $validatedData['reported_issue'] : null;
             $update->status = $validatedData['status'];
+            $update->urgency_level = $validatedData['urgency'];
             $update->issue_description = $validatedData['issue_description'];
             $update->date_reported =  Carbon::createFromFormat('m/d/Y', $validatedData['date_reported'])->format('Y-m-d');
             $update->is_schedule = false;
