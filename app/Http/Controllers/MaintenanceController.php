@@ -134,7 +134,9 @@ class MaintenanceController extends Controller
     public function Maintenance_Request_List()
     {
         try{
-            $maintenance = MaintenanceRequest::with('tenant.rentalAgreement.rentedUnit')->get();
+            $maintenance = MaintenanceRequest::with('tenant.rentalAgreement.rentedUnit')
+                ->orderByRaw("FIELD(urgency_level, 'High', 'Medium', 'Low')")
+                ->get();
 
             if(!$maintenance){
                 return response()->json([
@@ -652,7 +654,9 @@ class MaintenanceController extends Controller
                 ], 400);
             }
 
-            $query = MaintenanceRequest::with('tenant.rentalAgreement.rentedUnit')->where('status', $category);
+            $query = MaintenanceRequest::with('tenant.rentalAgreement.rentedUnit')
+                ->orderByRaw("FIELD(urgency_level, 'High', 'Medium', 'Low')")
+                ->where('status', $category);
 
             if($tenantId){
                 $query->where('tenant_id', $tenantId);

@@ -278,133 +278,111 @@ class ExpensesController extends Controller
     {
         try {
             $year = $request->input('year', Carbon::now()->year);
+            $lastYear = $year - 1;
             $month = $request->input('month');
-
-
-            // Query for current period expenses
-            $expensesQuery = Expenses::query();
-            $expensesQuery->whereYear('expense_date', $year);
-
-            if ($month !== 'all') {
-                $expensesQuery->whereMonth('expense_date', $month);
-            }
-
-            $expenses = $expensesQuery->get();
-
-            // Calculate total expenses for the current period
-            $totalExpenses = $expenses->sum('amount');
-            $maxExpenses = $expenses->max('amount');
-            $minExpenseRecord = $expenses->sortBy('amount')->first();
-            $minExpenseAmount = $minExpenseRecord ? $minExpenseRecord->amount : 0;
-
     
-            $previousMonth = null;
-
-            if ($month !== 'all') {
-                $previousMonth = Carbon::createFromDate($year, $month, 1)->subMonth();
-                // $previousMonth = Carbon::parse('2025-3-5')->subMonth();
-            } else {
-                // Handle the case when the month is 'all' (e.g., set to the previous year)
-                $previousMonth = Carbon::createFromDate($year - 1, 12, 1); // Set to December of the previous year
+            $currentYearExpenses = Expenses::whereYear('expense_date', $year)->get();
+            $lastYearExpenses = Expenses::whereYear('expense_date', $lastYear)->get();
+    
+            // Check if current year collection is empty
+            if($currentYearExpenses->isEmpty()){
+                return response()->json(['message' => 'No expenses found for current year!'], 404);
             }
-            $previousMonthExpenses = Expenses::whereYear('expense_date', $previousMonth->year)
-                ->whereMonth('expense_date', $previousMonth->month)
-                ->get();
-
-            $previousMonthTotal = $previousMonthExpenses->sum('amount');
-            $previousMonthMax = $previousMonthExpenses->max('amount');
-            $previousMonthMin = $previousMonthExpenses->min('amount');
-
-            // $limitHighestPercentage = 0;
-            // $limitPercentage = 0;
-            $highestExpenseChangeType = 'No Change'; // Track whether the percentage change is an increase or decrease
-            $lowestExpenseChangeType = 'No Change';
-
-            if($previousMonthMax > 0){
-                $highestExpensePercentageChange = round((($maxExpenses - $previousMonthMax) / $previousMonthMax )* 100, 2);
-                // $limitHighestPercentage =  min($highestExpensePercentageChange, 100);
-                // Determine if it's an increase or decrease
-                if ($maxExpenses > $previousMonthMax) {
-                    $highestExpenseChangeType = 'Increase';
-                } elseif ($maxExpenses < $previousMonthMax) {
-                    $highestExpenseChangeType = 'Decrease';
-                }
-            }else{
-                $highestExpensePercentageChange = 0;
-            }
-
-            if($previousMonthMin > 0){
-                $lowestExpensePercentageChange = round((($minExpenseAmount - $previousMonthMin) / $previousMonthMin) * 100, 2);
-                // $limitPercentage = min($lowestExpensePercentageChange, 100);
-                    // Determine if it's an increase or decrease
-                if ($minExpenseAmount > $previousMonthMin) {
-                    $lowestExpenseChangeType = 'Increase';
-                } elseif ($minExpenseAmount < $previousMonthMin) {
-                    $lowestExpenseChangeType = 'Decrease';
-                }
-            }else{
-                $lowestExpensePercentageChange = 0;
-            }
-
-            // Yearly total expenses
-            $yearlyExpenses = Expenses::whereYear('expense_date', $year)->sum('amount');
-            $previousYearExpenses = Expenses::whereYear('expense_date', $year - 1)->sum('amount');
-            $totalExpensePercentageYearly = 0;
-            $yearChangeType = 'No Change'; 
-
-            if ($previousYearExpenses > 0) {
-                // Calculate percentage change
-                $totalExpensePercentageYearly = round((($yearlyExpenses - $previousYearExpenses) / $previousYearExpenses) * 100, 2);
+    
+            // Initialize the variables that will be used for filtered data
+            $totalMonthlyExpenses = $currentYearExpenses;
+            $totalMonthlylastYearExpenses = $lastYearExpenses;
+    
+            // Filter by month if specified
+            if($month && $month !== 'all') {
+                $totalMonthlyExpenses = $currentYearExpenses->filter(function($expense) use ($month) {
+                    return Carbon::parse($expense->expense_date)->month == $month;
+                });
                 
-                // Determine the change type based on the percentage change
-                if ($yearlyExpenses > $previousYearExpenses) {
-                    $yearChangeType = 'Increase';
-                } elseif ($yearlyExpenses < $previousYearExpenses) {
-                    $yearChangeType = 'Decrease';
+                if(!$lastYearExpenses->isEmpty()) {
+                    $totalMonthlylastYearExpenses = $lastYearExpenses->filter(function($expense) use ($month) {
+                        return Carbon::parse($expense->expense_date)->month == $month;
+                    });
                 }
             }
-
-            // Monthly percentage change (current vs. previous month)
-            $monthlyPercentageChange = 0;
-            $monthlyChangeType = 'No Change';
-            // $limitMonthlyPercentage = 0;
-            if($previousMonthTotal > 0){
-                $monthlyPercentageChange = round((($totalExpenses - $previousMonthTotal) /$previousMonthTotal) * 100, 2);
-                // $limitMonthlyPercentage = min($monthlyPercentageChange, 100);
-                if($totalExpenses > $previousMonthTotal){
-                    $monthlyChangeType = 'Increase';
-                }elseif ($totalExpenses < $previousMonthTotal){
-                    $monthlyChangeType = 'Decrease';
-                }
+    
+            // Calculate statistics for the current year
+            $totlExpensesCurrentYear = $totalMonthlyExpenses->sum('amount');
+            $highestExpensesCurrentYear = $currentYearExpenses->max('amount');  
+            $lowestExpensesCurrentYear = $currentYearExpenses->min('amount');
+    
+            // Find the months corresponding to the highest and lowest expenses for the current year
+            $highestExpenseRecord = $currentYearExpenses->where('amount', $highestExpensesCurrentYear)->first();
+            $lowestExpenseRecord = $currentYearExpenses->where('amount', $lowestExpensesCurrentYear)->first();
+            
+            $highestMonthCurrentYear = $highestExpenseRecord ? Carbon::parse($highestExpenseRecord->expense_date)->format('F') : null;
+            $lowestMonthCurrentYear = $lowestExpenseRecord ? Carbon::parse($lowestExpenseRecord->expense_date)->format('F') : null;
+    
+            // Initialize last year statistics with null values
+            $totlExpensesLastYear = null;
+            $highestExpensesLastYear = null;
+            $lowestExpensesLastYear = null;
+            $lowestMonthLastYear = null;
+            
+            // Calculate statistics for the previous year only if data exists
+            if(!$lastYearExpenses->isEmpty()) {
+                $totlExpensesLastYear = $totalMonthlylastYearExpenses->sum('amount');
+                $highestExpensesLastYear = $lastYearExpenses->max('amount');
+                $lowestExpensesLastYear = $lastYearExpenses->min('amount');
+                
+                // Find the month for the lowest expense of last year
+                $lowestExpenseLastYearRecord = $lastYearExpenses->where('amount', $lowestExpensesLastYear)->first();
+                $lowestMonthLastYear = $lowestExpenseLastYearRecord ? Carbon::parse($lowestExpenseLastYearRecord->expense_date)->format('F') : null;
             }
-            // $monthlyPercentageChange = $previousMonthTotal > 0
-            //     ? round((($totalExpenses - $previousMonthTotal) / $previousMonthTotal) * 100, 2)
-            //     : 0;
-
+    
+            // Initialize percentage changes with null values
+            $totalExpensesPercentage = 0;
+            $totalExpensesChangeType = 'No Change';
+            $highestExpensesPercentage = 0;
+            $highestExpensesChangeType = 'No Change';
+            $lowestExpensesPercentage = 0;
+            $lowestExpensesChangeType = 'No Change';
+    
+            // Calculate percentage changes only if last year data exists and is greater than 0
+            if($totlExpensesLastYear !== 0 && $totlExpensesLastYear > 0) {
+                $totalExpensesPercentage = round((($totlExpensesCurrentYear - $totlExpensesLastYear) / $totlExpensesLastYear) * 100, 2);
+                $totalExpensesChangeType = $totalExpensesPercentage > 0 ? 'Increase' : ($totalExpensesPercentage < 0 ? 'Decrease' : 'No Change');
+            }
+    
+            if($highestExpensesLastYear !== 0 && $highestExpensesLastYear > 0) {
+                $highestExpensesPercentage = round((($highestExpensesCurrentYear - $highestExpensesLastYear) / $highestExpensesLastYear) * 100, 2);
+                $highestExpensesChangeType = $highestExpensesPercentage > 0 ? 'Increase' : ($highestExpensesPercentage < 0 ? 'Decrease' : 'No Change');
+            }   
+    
+            if($lowestExpensesLastYear !== 0 && $lowestExpensesLastYear > 0) {
+                $lowestExpensesPercentage = round((($lowestExpensesCurrentYear - $lowestExpensesLastYear) / $lowestExpensesLastYear) * 100, 2);
+                $lowestExpensesChangeType = $lowestExpensesPercentage > 0 ? 'Increase' : ($lowestExpensesPercentage < 0 ? 'Decrease' : 'No Change');
+            }
+    
             return response()->json([
                 'message' => 'Expenses Calculated Successfully!',
                 'year' => $year,
                 'month' => $month === 'all' ? 'All Months' : Carbon::create()->month($month)->format('F'),
                 'data' => [
-                    'prevMonths' => $previousMonth,
-                    'total_expenses' => $totalExpenses,
-                    'max_expenses' => $maxExpenses,
-                    'min_expense_amount' => $minExpenseAmount,
-                    'previous_month_total' => $previousMonthTotal,
-                    'highest_expense_percentage' => $highestExpensePercentageChange,
-                    'highest_expense_change_type' => $highestExpenseChangeType, 
-                    'lowest_expense_percentage' => $lowestExpensePercentageChange,
-                    'lowest_expense_change_type' => $lowestExpenseChangeType, 
-                    'monthly_percentage_change' => $monthlyPercentageChange,
-                    'monthly_change_type' => $monthlyChangeType,
-                    'yearly_total_expenses' => $yearlyExpenses,
-                    'total_expense_percentage_yearly' => $totalExpensePercentageYearly,
-                    'yearly_change_type' => $yearChangeType
-                ],
+                    'total_expenses_current_year' => $totlExpensesCurrentYear,
+                    'total_expenses_last_year' => $totlExpensesLastYear,    
+                    'total_expenses_change_type' => $totalExpensesChangeType,
+                    'total_expenses_change_percentage' => $totalExpensesPercentage,
+                    'highest_expenses_current_year' => $highestExpensesCurrentYear,
+                    'highest_month_current_year' => $highestMonthCurrentYear,
+                    'lowest_expenses_current_year' => $lowestExpensesCurrentYear,
+                    'lowest_month_current_year' => $lowestMonthCurrentYear,
+                    'highest_expenses_last_year' => $highestExpensesLastYear,
+                    'lowest_expenses_last_year' => $lowestExpensesLastYear,
+                    'lowest_month_last_year' => $lowestMonthLastYear,
+                    'highest_expenses_change_percentage' => $highestExpensesPercentage,
+                    'highest_expenses_change_type' => $highestExpensesChangeType,
+                    'lowest_expenses_change_percentage' => $lowestExpensesPercentage,
+                    'lowest_expenses_change_type' => $lowestExpensesChangeType,
+                ]
             ], 200);
-
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Query Data failed', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'Failed to calculate expenses: ' . $e->getMessage()], 500);
         }
     }
 
